@@ -1,14 +1,37 @@
-from fastapi import FastAPI
-from forecast import TemperatureForecaster
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from forecast import TemperatureForecaster  
 
+# Create a FastAPI instance
 app = FastAPI()
 
-@app.post("/forecast/")
-def get_forecast(latitude: float, longitude: float, start_date: str, end_date: str):
-    forecaster = TemperatureForecaster()
-    predicted_temp = forecaster.forecast(latitude, longitude, start_date, end_date)
-    return {"predicted_temperature": predicted_temp}
+# Define the request body structure
+class ForecastRequest(BaseModel):
+    latitude: float
+    longitude: float
+    forecast_date: str  # Expected format: 'YYYY-MM-DD'
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Instantiate the TemperatureForecaster
+forecaster = TemperatureForecaster()
+
+# Define a POST endpoint for temperature forecasting
+@app.post("/forecast/")
+def get_forecast(request: ForecastRequest):
+    try:
+        # Get the forecast using the forecaster class
+        result = forecaster.forecast(
+            latitude=request.latitude, 
+            longitude=request.longitude, 
+            forecast_date=request.forecast_date
+        )
+        # Return the predicted temperature in a JSON response
+        return {"predicted_temperature": result}
+    except Exception as e:
+        # If something goes wrong, raise an HTTP exception
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Define a simple GET endpoint to check if the API is running
+@app.get("/")
+def read_root():
+    return {"message": "Temperature forecasting API is running."}
